@@ -14,6 +14,8 @@ warnings.filterwarnings('ignore')
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier, ExtraTreesClassifier
 from sklearn.svm import SVC
 from sklearn.cross_validation import KFold  # 注意cross_validation会提醒过期
+from sklearn import preprocessing
+
 
 train=pd.read_csv('/media/martin/新加卷/allkind/kaggle/titanic/train.csv')
 test=pd.read_csv('/media/martin/新加卷/allkind/kaggle/titanic/test.csv')
@@ -115,23 +117,30 @@ ntrain = train.shape[0]  # train数据集中样本数量
 ntest = test.shape[0]  # test数据集中样本数量
 SEED = 0  # seed选定每次产生随机数相同
 NFOLDS = 5  # set folds for out-of-fold prediction
-kf = KFold(ntrain, n_folds=NFOLDS, random_state=SEED)
+class_num = 2
+min_max_scaler = preprocessing.MinMaxScaler()
+
+# 从dataframe变为array
+y_train = train['Survived'].ravel()
+train = train.drop(['Survived'], axis=1)
+x_train = train.values # Creates an array of the train data
+x_test = test.values # Creats an array of the test data
 
 
 # Class to extend the Sklearn classifier
 class SklearnHelper(object):
     def __init__(self, clf, seed=0, params=None):
-        params['random_state'] = seed
+        params['random_state'] = seed  # 拟合模型时也会用到随机
         self.clf = clf(**params)  # **相当于把字典打开成k=1等等形式，这是逆用
 
     def train(self, x_train, y_train):
         self.clf.fit(x_train, y_train)
 
-    def predict(self, x):  # 注意predict函数输出的都已经是0,1了。
+    def predict(self, x):  # 注意predict函数输出的都已经是0,1了
         return self.clf.predict(x)
 
-    def predict_pro(self, x):
-        return self.clf.predict_proba(x)
+    def predict_pro(self, x):  # 得到预测的各个类别的概率
+        return self.clf.predict_proba(x)  # 输出是array
 
     def fit(self, x, y):
         return self.clf.fit(x, y)
@@ -142,10 +151,20 @@ class SklearnHelper(object):
         # Class to extend XGboost classifer
 
 
-def get_oof(clf, x_train, y_train, x_test):  # 为了不使用train过的数据去衡量精度，利用k折划分数据集，clf是上面那个skhelper
-    oof_train = np.zeros((ntrain,))  # 不知为何加个,
-    oof_test = np.zeros((ntest,))
-    oof_test_skf = np.empty((NFOLDS, ntest))  # 随机产生array，不是空的
+kf = KFold(ntrain, n_folds=NFOLDS, random_state=SEED)  # 其实不管第几层，样本量是不变的，所以这个也没必要变。不过可能后面就需要这么多折了
+
+
+# 将各个功能分别封装，避免重复些代码，并且逻辑清晰
+# 这个函数的功能就是给出各个basemodel分别输出的train和test上的第二层feature
+# 不同层的NFOLDS可能变
+def get_oof(clf, x_train, y_train, x_test, kf):  # 为了不使用train过的数据去衡量精度，利用k折划分数据集，clf是上面那个skhelper
+    train_num = x_train.shape[0]
+    test_num = y_train.shape[0]
+    oof_train = np.zeros((train_num,))  # 不知为何加个,
+    oof_train_pro = np.zeros((train_num,class_num))
+    oof_test = np.zeros((test_num,))
+    oof_test_pro = np.zeros((test_num,class_num))
+    oof_test_skf = np.empty((NFOLDS, test_num))  # 随机产生array，不是空的
 
     for i, (train_index, test_index) in enumerate(kf):
         x_tr = x_train[train_index]  # 这里好像得用array，否则没法定位
@@ -155,9 +174,12 @@ def get_oof(clf, x_train, y_train, x_test):  # 为了不使用train过的数据�
         clf.train(x_tr, y_tr)
 
         oof_train[test_index] = clf.predict(x_te)  # 这个出来全是0,1,你想要原始概率是clf.predict_proba，有两列
+        oof_train[test_index,:] = clf.predict_pro(x_te)  # x_te是训练集中的，x_test是train对应的标签
         oof_test_skf[i, :] = clf.predict(x_test)  # 每次训练出来的模型都预测一次test数集，取平均最后
+        oof_test_pro += clf.predict_pro(x_test)
 
     oof_test[:] = oof_test_skf.mean(axis=0)
+    oof_test_pro = oof_test_pro/NFOLDS  # 还没有return，视情况加上去
     return oof_train.reshape(-1, 1), oof_test.reshape(-1, 1)  # -1表示行的维数依列而定，列反正是1维，行排多少行就是多少行。train的全是0,1,test就会有小数了。
 
 # Put in our parameters for said classifiers
@@ -211,12 +233,21 @@ ada = SklearnHelper(clf=AdaBoostClassifier, seed=SEED, params=ada_params)
 gb = SklearnHelper(clf=GradientBoostingClassifier, seed=SEED, params=gb_params)
 svc = SklearnHelper(clf=SVC, seed=SEED, params=svc_params)
 
+basemodels=[
+    ['clf1',rf]
+    ['clf2', et]
+    ['clf3', ada]
+    ['clf4',gb]
+    ['clf5',svc]
+]
 
-# 从dataframe变为array
-y_train = train['Survived'].ravel()
-train = train.drop(['Survived'], axis=1)
-x_train = train.values # Creates an array of the train data
-x_test = test.values # Creats an array of the test data
+train_x_level2=np.zeros(x_train.shape[0], len(basemodels))
+test_x_level2 = np.zeros(y_train.shape[0], len(basemodels))
+for i, bm in enumerate(basemodels):
+    model = bm[1]
+    train_x_level2[:,i], test_x_level2[:, i] = get_oof(medel, x_train, y_train, x_test)  # 得到第二层的训练集
+# 然后就可以再次调用get_oof函数
+
 
 # Create our OOF train and test predictions. These base results will be used as new features
 et_oof_train, et_oof_test = get_oof(et, x_train, y_train, x_test) # Extra Trees
@@ -228,7 +259,7 @@ svc_oof_train, svc_oof_test = get_oof(svc,x_train, y_train, x_test) # Support Ve
 print("Training is complete")
 
 # 输出各个变量的重要性
-rf_feature = rf.feature_importances(x_train,y_train)
-et_feature = et.feature_importances(x_train, y_train)
-ada_feature = ada.feature_importances(x_train, y_train)
-gb_feature = gb.feature_importances(x_train,y_train)
+# rf_feature = rf.feature_importances(x_train,y_train)
+# et_feature = et.feature_importances(x_train, y_train)
+# ada_feature = ada.feature_importances(x_train, y_train)
+# gb_feature = gb.feature_importances(x_train,y_train)
