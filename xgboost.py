@@ -22,16 +22,15 @@ for train_index, test_index in kf.split(X):
     xgb_model = xgb.XGBClassifier().fit(X[train_index],y[train_index])
     predictions = xgb_model.predict(X[test_index])
     actuals = y[test_index]
-    print(confusion_matrix(actuals, predictions))
-
-print("Iris: multiclass classification")
+    print(confusion_matrix(actuals, predictions)
+print("Iris: multiclass classification")  # 同样可以处理多分类问题
 iris = load_iris()
 y = iris['target']
 X = iris['data']
 kf = KFold(n_splits=2, shuffle=True, random_state=rng)
 for train_index, test_index in kf.split(X):
     xgb_model = xgb.XGBClassifier().fit(X[train_index],y[train_index])
-    predictions = xgb_model.predict(X[test_index])
+    predictions = xgb_model.predict(X[test_index])  # 输出就是1，2，3这样，当然应该是可以调出各个类别的概率的
     actuals = y[test_index]
     print(confusion_matrix(actuals, predictions))
 
