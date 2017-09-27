@@ -32,7 +32,7 @@ for train_index, test_index in kf.split(X):
     xgb_model = xgb.XGBClassifier().fit(X[train_index],y[train_index])
     predictions = xgb_model.predict(X[test_index])  # 输出就是1，2，3这样，当然应该是可以调出各个类别的概率的
     actuals = y[test_index]
-    print(confusion_matrix(actuals, predictions))
+    print(confusion_matrix(actuals, predictions))  # 各行为真类别，各列为预测的各个类别
 
 print("Boston Housing: regression")
 boston = load_boston()
@@ -49,6 +49,7 @@ print("Parameter optimization")
 y = boston['target']
 X = boston['data']
 xgb_model = xgb.XGBRegressor()
+# 寻找最优参数
 clf = GridSearchCV(xgb_model,
                    {'max_depth': [2,4,6],
                     'n_estimators': [50,100,200]}, verbose=1)
