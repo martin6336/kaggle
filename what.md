@@ -15,3 +15,7 @@ GitHub上有一篇12th的code，看了之后发现他没用什么高大上的方
 1，他的stacking预测数据也是保证train过的数据不会用他拟合的模型去预测，对于train的运算和你一样，但是test数据集他是直接用所有trian训练然后预测，不是像你那样使用kfold中的各个train子集预测后在平均。
 
 2，另外就是 OneVsRestClassifier，有两个好处总共就需要拟合n_class个模型（computational efficiency），另外有更好的解释性。这个几乎是为svm定制的，svm最初就是解决二分类问题，多分类计算复杂度太高，one-vs-rest就可以解决这个问题。
+
+3，使用calibration
+
+*todo* 1，calibration 2，svm（one-vs-rest)
