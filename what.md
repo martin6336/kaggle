@@ -18,4 +18,10 @@ GitHub上有一篇12th的code，看了之后发现他没用什么高大上的方
 
 3，使用calibration
 
-*todo* 1，calibration 2，svm（one-vs-rest)
+4,作者自己编了个rgf函数，分类用的，Regularized Greedy Forest以后看
+
+5，编程结构把基础模型分别放在不同的路径下，虽然可能很散，并且看起来代码很多，但是很系统对于每个基础模型都可以进行详细的调试，并且也可以分别输出各个模型表现，实际很方便。不同基模型的代码结构也类似
+
+6，让人很在意的是大神们好像都特喜欢自己编出来个模型，不管是nn还是xgboost
+
+*todo* 1，calibration 2，svm（one-vs-rest) 3,RI矩阵构造新数据阵 4，test数据集的kfold处理
