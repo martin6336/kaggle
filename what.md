@@ -6,4 +6,5 @@ GitHub上有一篇12th的code，看了之后发现他没用什么高大上的方
 4，最后就是xgboost和nn加权各个概率
 
 
-还有一位66位的大神，![传送门](http://blog.aicry.com/kaggle-otto-group-product-classification-challenge/)。calibration这个库很有意思。
+还有一位66位的大神，![传送门](http://blog.aicry.com/kaggle-otto-group-product-classification-challenge/)。calibration这个库很有意思。 注意的点：
+1，他的stacking预测数据也是保证train过的数据不会用他拟合的模型去预测，对于train的运算和你一样，但是test数据集他是直接用所有trian训练然后预测，不是像你那样使用kfold中的各个train子集预测后在平均。
